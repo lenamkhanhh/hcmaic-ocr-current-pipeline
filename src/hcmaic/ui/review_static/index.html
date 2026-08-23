@@ -1,0 +1,432 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>HCMAIC · Ground-Truth Range Review</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%230969da'><rect width='24' height='24' rx='4'/><path d='M8 6h8M8 12h8M8 18h5' stroke='%23fff' stroke-width='2' stroke-linecap='round'/></svg>">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <!-- Top Navigation Bar (56px) -->
+  <header class="app-topbar">
+    <div class="topbar-left">
+      <div class="app-logo" aria-hidden="true">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <polygon points="5 3 19 12 5 21 5 3"></polygon>
+        </svg>
+      </div>
+      <div class="app-brand-info">
+        <div class="brand-heading-row">
+          <h1 class="app-title">Range Review</h1>
+          <span class="pill pill-muted">142 items</span>
+        </div>
+        <span class="app-subtext">3 FPS · anchor ±20s · source-frame identity preserved</span>
+      </div>
+    </div>
+
+    <div class="topbar-right">
+      <!-- Progress Indicator -->
+      <div class="progress-widget" title="Review progress">
+        <span class="progress-label"><b id="reviewedCount">0</b>/<span id="totalCount">0</span> reviewed</span>
+        <div class="progress-track" aria-hidden="true">
+          <div id="topProgressBar" class="progress-fill" style="width: 0%;"></div>
+        </div>
+        <span id="remainingBadge" class="pill pill-warning">0 remaining</span>
+      </div>
+
+      <!-- Contract Tags -->
+      <div class="contract-tags">
+        <span id="evidenceTag" class="pill pill-neutral" title="Evidence level">HUMAN_REVIEW_DRAFT</span>
+        <span id="qualityTag" class="pill pill-neutral" title="Quality status">UNVALIDATED</span>
+      </div>
+
+      <!-- Actions -->
+      <button id="exportBtn" class="btn btn-secondary btn-sm" title="Export decisions to JSON">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+          <polyline points="7 10 12 15 17 10"></polyline>
+          <line x1="12" y1="15" x2="12" y2="3"></line>
+        </svg>
+        Export JSON
+      </button>
+
+      <button id="shortcutsBtn" class="btn btn-icon btn-sm" title="Keyboard Shortcuts (?)" aria-label="Keyboard Shortcuts">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"></circle>
+          <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+          <line x1="12" y1="17" x2="12.01" y2="17"></line>
+        </svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- Split Dashboard Layout -->
+  <div class="app-layout">
+    <!-- Left Sidebar: Queue & Filter Panel (290px) -->
+    <aside class="sidebar-panel">
+      <div class="sidebar-header">
+        <div class="search-wrap">
+          <svg class="search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+          <input id="searchInput" type="search" placeholder="Search video, query, uid..." autocomplete="off">
+          <button id="clearSearchBtn" class="search-clear-btn hidden" title="Clear search" aria-label="Clear search">✕</button>
+        </div>
+
+        <nav class="segmented-filters" aria-label="Status filter">
+          <button class="filter-btn active" data-status="pending">Pending <span id="cntPending" class="filter-count">0</span></button>
+          <button class="filter-btn" data-status="all">All <span id="cntAll" class="filter-count">0</span></button>
+          <button class="filter-btn" data-status="accepted">Accepted <span id="cntAccepted" class="filter-count">0</span></button>
+          <button class="filter-btn" data-status="edited">Edited <span id="cntEdited" class="filter-count">0</span></button>
+          <button class="filter-btn" data-status="rejected">Rejected <span id="cntRejected" class="filter-count">0</span></button>
+        </nav>
+      </div>
+
+      <div id="queueList" class="queue-container" role="listbox" aria-label="Proposals queue">
+        <div class="queue-empty-msg">Loading proposals…</div>
+      </div>
+    </aside>
+
+    <!-- Main Review Workspace -->
+    <main class="workspace-panel">
+      <!-- Empty State Placeholder -->
+      <div id="emptyState" class="empty-state">
+        <div class="empty-icon-wrap">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"></rect>
+            <line x1="7" y1="2" x2="7" y2="22"></line>
+            <line x1="17" y1="2" x2="17" y2="22"></line>
+            <line x1="2" y1="12" x2="22" y2="12"></line>
+          </svg>
+        </div>
+        <h2>Select a proposal to review</h2>
+        <p class="text-muted">Choose a proposal from the queue or navigate with <kbd>↑</kbd> / <kbd>↓</kbd> arrow keys.</p>
+      </div>
+
+      <!-- Active Review Article -->
+      <article id="reviewArticle" class="review-workspace hidden">
+        <!-- Proposal Hero Summary -->
+        <section class="proposal-hero-card">
+          <div class="hero-header-row">
+            <div class="hero-title-wrap">
+              <span id="proposalVideoTag" class="tag-video-mono"></span>
+              <h2 id="proposalTitle" class="proposal-id-title"></h2>
+            </div>
+            <div class="hero-status-tags">
+              <span id="proposalStatusBadge" class="status-pill"></span>
+              <span id="proposalTaskBadge" class="pill pill-neutral"></span>
+              <span id="proposalSourceBadge" class="pill pill-muted"></span>
+            </div>
+          </div>
+
+          <!-- Query Event Banner -->
+          <div class="query-banner">
+            <div class="query-header">
+              <span class="query-caption">TARGET QUERY EVENT</span>
+              <span id="queryUidLabel" class="query-uid-mono"></span>
+            </div>
+            <p id="queryText" class="query-body"></p>
+          </div>
+
+          <!-- Metadata Chips -->
+          <div class="meta-chips-row">
+            <div class="meta-chip">
+              <span class="chip-k">Video ID:</span>
+              <span id="metaVideoId" class="chip-v"></span>
+            </div>
+            <div class="meta-chip">
+              <span class="chip-k">Anchor Frame:</span>
+              <span id="metaAnchor" class="chip-v chip-anchor-text"></span>
+            </div>
+            <div class="meta-chip">
+              <span class="chip-k">Proposed Range:</span>
+              <span id="metaProposedRange" class="chip-v"></span>
+            </div>
+            <div class="meta-chip">
+              <span class="chip-k">Window:</span>
+              <span class="chip-v">3 FPS · ±20s (40s span)</span>
+            </div>
+            <div id="reviewedByChip" class="meta-chip chip-reviewed-flag hidden">
+              <span class="chip-k">Decision by:</span>
+              <span id="metaReviewedBy" class="chip-v"></span>
+            </div>
+          </div>
+        </section>
+
+        <!-- Sticky Adjudication Control Bar -->
+        <section class="adjudication-card" id="adjudicationBar">
+          <div class="adjudication-top-line">
+            <div class="adjudication-title-block">
+              <h3 class="adjudication-heading">Range Adjudication</h3>
+              <span class="adjudication-rule-hint">left ≤ anchor ≤ right</span>
+            </div>
+            <div class="adjudication-key-hints">
+              <span>Shortcuts:</span>
+              <kbd>A</kbd> Accept
+              <kbd>E</kbd> Save Edit
+              <kbd>R</kbd> Reject
+            </div>
+          </div>
+
+          <!-- Input Fields Strip -->
+          <div class="range-inputs-row">
+            <!-- Left Input -->
+            <div class="boundary-input-block">
+              <label for="leftInput" class="input-block-label">
+                <span class="dot-indicator dot-left"></span> Left Boundary Index
+              </label>
+              <input id="leftInput" type="number" min="0" placeholder="0" class="input-mono">
+              <div class="input-time-caption">
+                Time: <span id="leftTimeDisplay" class="time-bold">--</span>
+              </div>
+            </div>
+
+            <!-- Anchor (Fixed Reference) -->
+            <div class="boundary-input-block anchor-block">
+              <div class="input-block-label">
+                <span class="dot-indicator dot-anchor"></span> Anchor Index (Fixed)
+              </div>
+              <div id="anchorIdxDisplay" class="anchor-value-mono">--</div>
+              <div class="input-time-caption">
+                Time: <span id="anchorTimeDisplay" class="time-bold">--</span>
+              </div>
+            </div>
+
+            <!-- Right Input -->
+            <div class="boundary-input-block">
+              <label for="rightInput" class="input-block-label">
+                <span class="dot-indicator dot-right"></span> Right Boundary Index
+              </label>
+              <input id="rightInput" type="number" min="0" placeholder="0" class="input-mono">
+              <div class="input-time-caption">
+                Time: <span id="rightTimeDisplay" class="time-bold">--</span>
+              </div>
+            </div>
+
+            <!-- Span Summary -->
+            <div class="boundary-input-block span-block">
+              <div class="input-block-label">Selected Span</div>
+              <div class="span-value-row">
+                <span id="rangeSpanFrames" class="span-frames-mono">--</span>
+                <span class="span-unit">frames</span>
+              </div>
+              <div class="input-time-caption">
+                Duration: <span id="rangeSpanTime" class="time-bold">--</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Inline Validation Alert -->
+          <div id="rangeAlert" class="validation-alert hidden" role="alert">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="8" x2="12" y2="12"></line>
+              <line x1="12" y1="16" x2="12.01" y2="16"></line>
+            </svg>
+            <span id="rangeAlertText"></span>
+          </div>
+
+          <!-- Reviewer, Note & Action Buttons -->
+          <div class="adjudication-action-row">
+            <div class="reviewer-note-fields">
+              <div class="field-item reviewer-field">
+                <label for="reviewerInput">Reviewer</label>
+                <input id="reviewerInput" type="text" value="teammate" placeholder="Name/ID" autocomplete="name">
+              </div>
+              <div class="field-item note-field">
+                <label for="noteInput">Decision Note</label>
+                <input id="noteInput" type="text" placeholder="Reason for edit/rejection (optional)...">
+              </div>
+            </div>
+
+            <div class="action-buttons-group">
+              <button id="resetRangeBtn" class="btn btn-ghost btn-sm" title="Reset to proposal range">
+                Reset
+              </button>
+              <button id="rejectBtn" class="btn btn-danger btn-sm" title="Reject proposal (Shortcut: R)">
+                <span class="btn-kbd-badge">R</span> Reject
+              </button>
+              <button id="saveEditBtn" class="btn btn-warning btn-sm" title="Save custom range (Shortcut: E)">
+                <span class="btn-kbd-badge">E</span> Save Edit
+              </button>
+              <button id="acceptBtn" class="btn btn-primary btn-sm" title="Accept proposed range (Shortcut: A)">
+                <span class="btn-kbd-badge">A</span> Accept Proposal
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <!-- Prominent Key Boundary Frames Strip -->
+        <section class="section-card">
+          <div class="section-card-header">
+            <div>
+              <h3 class="section-heading-text">Key Boundary Frames</h3>
+              <p class="section-subtext">Anchor reference point and boundary endpoints · Click any frame to inspect in lightbox</p>
+            </div>
+          </div>
+          <div id="keyFramesStrip" class="key-strip-row">
+            <!-- 3 prominent cards: Left, Anchor, Right -->
+          </div>
+        </section>
+
+        <!-- Chronological Sequence Grid -->
+        <section class="section-card">
+          <div class="section-card-header">
+            <div>
+              <h3 class="section-heading-text">Chronological Frame Sequence</h3>
+              <p id="frameCountBadge" class="section-subtext">0 sampled frames (3 FPS)</p>
+            </div>
+            <div class="sequence-legend">
+              <span class="legend-entry"><span class="legend-dot dot-anchor"></span> Anchor</span>
+              <span class="legend-entry"><span class="legend-dot dot-boundary"></span> Proposal Boundary</span>
+              <span class="legend-entry"><span class="legend-dot dot-inrange"></span> In Selected Range</span>
+              <span class="legend-entry"><span class="legend-dot dot-outwindow"></span> Outside ±20s Window</span>
+              <span class="legend-entry"><span class="legend-dot dot-grid"></span> 3 FPS Grid</span>
+            </div>
+          </div>
+
+          <div id="framesGrid" class="frames-masonry-grid">
+            <!-- Chronological sampled frame cards rendered here -->
+          </div>
+        </section>
+
+        <!-- Evidence disclaimer footer -->
+        <footer class="workspace-footer">
+          <div class="footer-contract-note">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="16" x2="12" y2="12"></line>
+              <line x1="12" y1="8" x2="12.01" y2="8"></line>
+            </svg>
+            <span>Draft human review. Decisions written to <code>review_decisions.jsonl</code> with <code>evidence_level=HUMAN_REVIEW_DRAFT</code>. State remains <code>UNVALIDATED</code>.</span>
+          </div>
+        </footer>
+      </article>
+    </main>
+  </div>
+
+  <!-- Fullscreen Image Lightbox Viewer Modal -->
+  <dialog id="lightboxModal" class="lightbox-modal" aria-label="Frame image inspector" aria-modal="true">
+    <div class="lightbox-shell">
+      <!-- Lightbox Header Bar -->
+      <header class="lightbox-topbar">
+        <div class="lightbox-meta-left">
+          <span id="lightboxFrameUid" class="lightbox-uid-mono">--</span>
+          <div id="lightboxRoleBadges" class="lightbox-role-tags"></div>
+          <span class="meta-divider">·</span>
+          <span class="lightbox-idx-text">idx <b id="lightboxFrameIdx">--</b></span>
+          <span class="meta-divider">·</span>
+          <span id="lightboxTimeDisplay" class="lightbox-time-mono">--</span>
+        </div>
+
+        <div class="lightbox-meta-right">
+          <!-- Zoom Controls Toolbar -->
+          <div class="lightbox-zoom-toolbar" role="toolbar" aria-label="Zoom controls">
+            <button id="zoomOutBtn" class="zoom-btn" title="Zoom out (-)" aria-label="Zoom out">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            </button>
+            <span id="zoomLevelDisplay" class="zoom-pct-mono">Fit</span>
+            <button id="zoomInBtn" class="zoom-btn" title="Zoom in (+)" aria-label="Zoom in">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            </button>
+            <button id="zoomFitBtn" class="zoom-btn zoom-btn-text" title="Fit to screen (0)">Fit</button>
+            <button id="zoomActualBtn" class="zoom-btn zoom-btn-text" title="Actual 1:1 pixel size">100%</button>
+          </div>
+
+          <button id="closeLightboxBtn" class="lightbox-close-btn" aria-label="Close lightbox (Esc)" title="Close (Esc)">✕</button>
+        </div>
+      </header>
+
+      <!-- Viewport Canvas -->
+      <div class="lightbox-viewport" id="lightboxViewport" role="region" aria-label="Draggable and zoomable frame view">
+        <div class="lightbox-canvas-wrapper" id="lightboxImageWrapper">
+          <img id="lightboxImage" src="" alt="Full frame view" draggable="false">
+        </div>
+      </div>
+
+      <!-- Lightbox Bottom Navigation Bar -->
+      <footer class="lightbox-bottombar">
+        <div class="lightbox-shortcuts-hint">
+          <span>Wheel zoom · Drag to pan when zoomed · <kbd>Esc</kbd> Close · <kbd>+</kbd>/<kbd>-</kbd> Zoom · <kbd>0</kbd> Fit</span>
+        </div>
+        <div class="lightbox-nav-actions">
+          <button id="lightboxPrevFrameBtn" class="btn btn-secondary btn-sm" title="Previous frame (←)">‹ Prev Frame</button>
+          <button id="lightboxNextFrameBtn" class="btn btn-secondary btn-sm" title="Next frame (→)">Next Frame ›</button>
+          <button id="lightboxSetLeftBtn" class="btn btn-secondary btn-sm" title="Set as Left boundary">Set Left</button>
+          <button id="lightboxSetRightBtn" class="btn btn-secondary btn-sm" title="Set as Right boundary">Set Right</button>
+        </div>
+      </footer>
+    </div>
+  </dialog>
+
+  <!-- Keyboard Shortcuts Modal Dialog -->
+  <dialog id="shortcutsModal" class="help-modal">
+    <div class="modal-card">
+      <div class="modal-card-header">
+        <h3 class="modal-card-title">Keyboard Shortcuts</h3>
+        <button id="closeShortcutsBtn" class="modal-card-close" aria-label="Close dialog">✕</button>
+      </div>
+      <div class="modal-card-body">
+        <table class="shortcuts-spec-table">
+          <thead>
+            <tr>
+              <th>Action</th>
+              <th>Shortcut Key</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Accept proposal</td>
+              <td><kbd>A</kbd></td>
+            </tr>
+            <tr>
+              <td>Save edited range</td>
+              <td><kbd>E</kbd></td>
+            </tr>
+            <tr>
+              <td>Reject proposal</td>
+              <td><kbd>R</kbd></td>
+            </tr>
+            <tr>
+              <td>Previous proposal in queue</td>
+              <td><kbd>↑</kbd> or <kbd>K</kbd></td>
+            </tr>
+            <tr>
+              <td>Next proposal in queue</td>
+              <td><kbd>↓</kbd> or <kbd>J</kbd></td>
+            </tr>
+            <tr>
+              <td>Zoom In / Out (in Lightbox)</td>
+              <td><kbd>+</kbd> / <kbd>-</kbd></td>
+            </tr>
+            <tr>
+              <td>Fit image to viewport (in Lightbox)</td>
+              <td><kbd>0</kbd></td>
+            </tr>
+            <tr>
+              <td>Previous / Next frame (in Lightbox)</td>
+              <td><kbd>←</kbd> / <kbd>→</kbd></td>
+            </tr>
+            <tr>
+              <td>Toggle shortcuts help</td>
+              <td><kbd>?</kbd></td>
+            </tr>
+            <tr>
+              <td>Close dialog / Lightbox</td>
+              <td><kbd>Esc</kbd></td>
+            </tr>
+          </tbody>
+        </table>
+        <p class="modal-card-note text-muted">Shortcuts are disabled while editing text inputs.</p>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- Subdued Notification Toast -->
+  <div id="toast" class="toast-popup hidden" role="status" aria-live="polite"></div>
+
+  <script src="/app.js"></script>
+</body>
+</html>

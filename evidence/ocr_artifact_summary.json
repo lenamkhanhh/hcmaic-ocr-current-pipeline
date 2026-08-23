@@ -1,0 +1,53 @@
+{
+  "audit_date": "2026-08-23",
+  "scope": "metadata_only_local_audit",
+  "source_manifest_count": 12,
+  "logical_shard_count": 6,
+  "partition_source_count": 9,
+  "full_source_count": 3,
+  "expected_frame_count": 146121,
+  "frame_status_count": 146121,
+  "crop_count": 4320089,
+  "recognition_count": 4320089,
+  "failure_count": 4878,
+  "failure_counts_by_type": {
+    "NO_TEXT": 4878,
+    "READ_FAILED": 0,
+    "INFERENCE_FAILED": 0,
+    "PARSE_ERROR": 0
+  },
+  "unresolved_failure_count": 0,
+  "detector": {
+    "model": "DeepSolo ResNet-50 DSText official",
+    "revision": "dbadae995035246bad3376c7a44c015c69e9b313",
+    "score_threshold": 0.3,
+    "full_frame_only": true,
+    "tile_pass_count": 0
+  },
+  "recognizer": {
+    "model": "PARSeq Vietnamese fine-tune",
+    "revision": "76cc5f3cc6268457aac764653400fdff681f8271",
+    "top_k": 1,
+    "input_size": "32x128"
+  },
+  "snapshot": {
+    "schema": "hcmaic-ocr-elasticsearch-snapshot-v1",
+    "state": "SUCCESS",
+    "source_index": "hcmaic_ocr_v1",
+    "source_doc_count": 4320073,
+    "declared_row_count": 4320089,
+    "count_delta": -16,
+    "quality_status": "UNVALIDATED",
+    "provenance_class": "ENGINEERING_PROXY",
+    "manifest_sha256": "94ebc4b611d95aeb66c17c3140ea09a3534f888d74e1ae6b71bfa4ecb86ccf30",
+    "source_index_manifest_sha256": "9af3e5a926247b4edc338e4575ec54879f58994e3ef7622a5564e83d8baaa9af",
+    "source_ocr_manifest_sha256": "18f38ec1e405147b6bf32619ae67c7e7f02c1368c1015bfb2054476949a32923"
+  },
+  "known_contract_gaps": [
+    "full source manifests s0003, s0004, s0005 omit postflight",
+    "Elasticsearch snapshot count delta is -16",
+    "snapshot manifest omits model_contract, so runtime revision can be unknown+unknown",
+    "quality remains UNVALIDATED"
+  ]
+}
+

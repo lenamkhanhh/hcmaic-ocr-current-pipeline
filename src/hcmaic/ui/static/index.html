@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HCMAIC Retrieval — Matcha Dark Console</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+</head>
+<body class="theme-matcha">
+  <!-- Top Navigation & Compact Global Bar -->
+  <header class="app-header">
+    <div class="header-left">
+      <span class="brand-title">HCMAIC Retrieval</span>
+    </div>
+
+    <div class="header-controls">
+      <button
+        type="button"
+        id="temporalSearchToggle"
+        class="btn-toggle temporal-search-toggle header-temporal-toggle"
+        aria-pressed="false"
+        title="OFF: same-video bundle without a time gap constraint; ON: Trake mode with maximum 60 second adjacent gap"
+      >
+        Trake: OFF
+      </button>
+
+      <div class="btn-group view-switcher">
+        <button type="button" id="viewFlatBtn" class="btn-toggle" title="Show flat ranked candidate matrix">All Hits</button>
+        <button type="button" id="viewGroupedBtn" class="btn-toggle active" title="Group candidate hits by video ID">Grouped</button>
+      </div>
+
+      <div class="header-divider"></div>
+
+      <div class="filter-group">
+        <select id="stageFilter" class="select-sm" title="Filter candidates by stage">
+          <option value="all">All Stages</option>
+          <option value="S1">Stage 1 only</option>
+          <option value="S2">Stage 2 only</option>
+          <option value="S3">Stage 3 only</option>
+          <option value="S4">Stage 4 only</option>
+          <option value="S5">Stage 5 only</option>
+        </select>
+
+        <div id="videoFilterCombo" class="video-filter-combobox" title="Filter by specific video ID">
+          <div class="video-filter-control">
+            <input
+              id="videoFilterInput"
+              class="select-sm video-filter-input"
+              type="text"
+              placeholder="All videos"
+              autocomplete="off"
+              spellcheck="false"
+              role="combobox"
+              aria-label="Filter by specific video ID"
+              aria-autocomplete="list"
+              aria-haspopup="listbox"
+              aria-expanded="false"
+              aria-controls="videoFilterOptions"
+              aria-activedescendant=""
+            >
+            <button
+              id="videoFilterToggle"
+              class="video-filter-toggle"
+              type="button"
+              aria-label="Open video list"
+              aria-controls="videoFilterOptions"
+              aria-expanded="false"
+            >
+              <span aria-hidden="true">⌄</span>
+            </button>
+          </div>
+          <div id="videoFilterOptions" class="video-filter-options" role="listbox" hidden></div>
+          <div id="videoFilterHint" class="video-filter-hint" role="status" aria-live="polite" hidden></div>
+          <!-- Compatibility state: consumers read the committed canonical ID here. -->
+          <input id="videoFilter" type="hidden" value="">
+        </div>
+
+        <select id="topK" class="select-sm" title="Number of candidates to retrieve">
+          <option value="50">Top 50</option>
+          <option value="100">Top 100</option>
+          <option value="500" selected>Top 500</option>
+        </select>
+
+        <select id="allHitsSpacing" class="select-sm" title="Minimum spacing for repeated frames from the same video and stage in All Hits">
+          <option value="3000" selected>Gap 3s</option>
+          <option value="5000">Gap 5s</option>
+          <option value="0">Gap off</option>
+        </select>
+      </div>
+
+    </div>
+
+    <div class="header-right">
+      <div id="channelStatus" class="channel-status-bar" title="Capability status of retrieval channels"></div>
+      <button type="button" id="queueToggleBtn" class="btn-queue-header" title="Toggle Review Queue Rail">
+        Queue (<span id="queueBadge">0</span>)
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Three-Pane Layout -->
+  <main class="workspace-layout">
+    <!-- Pane 1: Left Stage Composer (240–280px) -->
+    <aside id="stagePanel" class="sidebar-panel" aria-label="Query Composer">
+      <div class="sidebar-tabs-nav">
+        <span class="sidebar-tab active">Search Stages</span>
+        <button type="button" id="stagePanelCollapseBtn" class="sidebar-collapse-btn" title="Collapse query sidebar" aria-label="Collapse query sidebar">‹</button>
+      </div>
+
+      <!-- Staged Search Section (dynamic S1 -> S5) -->
+      <section id="stagedSearchSection" class="sidebar-section active">
+        <div id="stagedStages" class="stage-list" aria-label="Staged search stages">
+        <!-- Stage 1 -->
+        <div class="stage-block s1-block" data-stage="s1">
+          <div class="stage-block-header">
+            <span class="stage-badge s1-badge">Stage 1</span>
+          </div>
+
+          <!-- 5 Horizontal Channel Tabs for S1 -->
+          <div class="stage-channel-tabs" data-stage="s1">
+            <div class="channel-tab-item">
+              <button type="button" class="channel-tab-btn active" data-channel="text">Text</button>
+              <button type="button" class="channel-toggle-btn" data-channel-toggle="text" aria-pressed="true" title="Disable Text channel">ON</button>
+            </div>
+            <div class="channel-tab-item">
+              <button type="button" class="channel-tab-btn" data-channel="ocr">OCR</button>
+              <button type="button" class="channel-toggle-btn" data-channel-toggle="ocr" aria-pressed="false" title="Enable OCR channel">OFF</button>
+            </div>
+            <div class="channel-tab-item">
+              <button type="button" class="channel-tab-btn" data-channel="asr">ASR</button>
+              <button type="button" class="channel-toggle-btn" data-channel-toggle="asr" aria-pressed="false" title="Enable ASR channel">OFF</button>
+            </div>
+            <div class="channel-tab-item">
+              <button type="button" class="channel-tab-btn" data-channel="image">Image</button>
+              <button type="button" class="channel-toggle-btn" data-channel-toggle="image" aria-pressed="false" title="Enable Image channel">OFF</button>
+            </div>
+            <div class="channel-tab-item">
+              <button type="button" class="channel-tab-btn" data-channel="object">Object</button>
+              <button type="button" class="channel-toggle-btn" data-channel-toggle="object" aria-pressed="false" title="Enable Object channel">OFF</button>
+            </div>
+          </div>
+
+          <!-- Channel Input Panels for S1 -->
+          <div class="channel-input-panels" data-stage="s1">
+            <div class="channel-panel active" data-channel="text">
+              <textarea id="s1Text" class="input-composer" rows="3" placeholder="e.g. a man riding a bicycle..."></textarea>
+            </div>
+            <div class="channel-panel" data-channel="ocr">
+              <textarea id="s1Ocr" class="input-composer" rows="3" placeholder="On-screen text or banner text..."></textarea>
+            </div>
+            <div class="channel-panel" data-channel="asr">
+              <textarea id="s1Asr" class="input-composer" rows="3" placeholder="Spoken dialogue or audio keywords..."></textarea>
+              <div class="asr-mode-picker" data-stage="s1" role="group" aria-label="Stage 1 ASR search mode">
+                <button type="button" class="asr-mode-btn" data-asr-mode="pho" aria-pressed="false" title="Search phowhisper_folded only">
+                  <span class="asr-mode-label">PhoWhisper</span>
+                  <span class="asr-mode-help">Fuzzy PhoWhisper field</span>
+                </button>
+                <button type="button" class="asr-mode-btn" data-asr-mode="whisper_v3" aria-pressed="false" title="Search whisper_v3_folded only">
+                  <span class="asr-mode-label">Whisper large</span>
+                  <span class="asr-mode-help">Fuzzy Whisper-v3 field</span>
+                </button>
+                <button type="button" class="asr-mode-btn active" data-asr-mode="rrf" aria-pressed="true" title="Search both folded transcript fields with RRF">
+                  <span class="asr-mode-label">Elastic 2 fields</span>
+                  <span class="asr-mode-help">Fuzzy Elasticsearch over both fields</span>
+                </button>
+              </div>
+            </div>
+            <div class="channel-panel" data-channel="image">
+              <div class="image-query-dropzone" data-image-dropzone="s1" data-image-paste-target="s1">
+                <div class="image-query-input-row">
+                  <textarea id="s1ImageUrl" class="image-query-url-input" data-image-url-input="s1" rows="2" maxlength="2048" placeholder="Paste an image URL or drop an image here…" aria-label="Stage 1 image URL"></textarea>
+                </div>
+                <div class="image-query-preview-wrap">
+                  <img class="image-query-preview" data-image-preview="s1" alt="" hidden>
+                  <div class="image-query-actions">
+                    <label class="image-query-file-button btn-secondary btn-xs" for="s1Image">Choose file
+                      <input id="s1Image" type="file" accept="image/jpeg,image/png" aria-describedby="s1ImageStatus">
+                    </label>
+                    <button type="button" class="image-query-clear btn-secondary btn-xs" data-image-clear="s1" disabled>Clear</button>
+                  </div>
+                </div>
+                <div class="image-query-hint">Paste a URL, clipboard image, or local JPEG/PNG.</div>
+              </div>
+              <span id="s1ImageStatus" class="image-query-status" aria-live="polite"></span>
+            </div>
+            <div class="channel-panel" data-channel="object">
+              <div id="s1ObjectBuilder" class="object-query-builder" data-stage="s1">
+                <div class="object-query-rows" data-stage="s1">
+                  <div class="object-query-row" data-row-index="0">
+                    <input class="object-count" type="number" min="1" step="1" value="1" aria-label="S1 object quantity">
+                    <div class="object-alias-field">
+                      <input class="object-alias" type="text" list="objectAliasOptions" placeholder="people, car..." autocomplete="off" aria-label="S1 object alias">
+                      <span class="object-alias-resolution" aria-live="polite">type an object alias</span>
+                    </div>
+                    <button type="button" class="object-add-row" aria-label="Add S1 object">+</button>
+                    <button type="button" class="object-remove-row" aria-label="Remove S1 object" hidden>−</button>
+                  </div>
+                </div>
+                <div class="object-query-preview" aria-live="polite">Query: —</div>
+                <input id="s1Object" type="hidden" value="">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Stage 2 -->
+        <div class="stage-block s2-block" data-stage="s2">
+          <div class="stage-block-header">
+            <span class="stage-badge s2-badge">Stage 2</span>
+          </div>
+
+          <!-- 5 Horizontal Channel Tabs for S2 -->
+          <div class="stage-channel-tabs" data-stage="s2">
+            <div class="channel-tab-item">
+              <button type="button" class="channel-tab-btn active" data-channel="text">Text</button>
+              <button type="button" class="channel-toggle-btn" data-channel-toggle="text" aria-pressed="true" title="Disable Text channel">ON</button>
+            </div>
+            <div class="channel-tab-item">
+              <button type="button" class="channel-tab-btn" data-channel="ocr">OCR</button>
+              <button type="button" class="channel-toggle-btn" data-channel-toggle="ocr" aria-pressed="false" title="Enable OCR channel">OFF</button>
+            </div>
+            <div class="channel-tab-item">
+              <button type="button" class="channel-tab-btn" data-channel="asr">ASR</button>
+              <button type="button" class="channel-toggle-btn" data-channel-toggle="asr" aria-pressed="false" title="Enable ASR channel">OFF</button>
+            </div>
+            <div class="channel-tab-item">
+              <button type="button" class="channel-tab-btn" data-channel="image">Image</button>
+              <button type="button" class="channel-toggle-btn" data-channel-toggle="image" aria-pressed="false" title="Enable Image channel">OFF</button>
+            </div>
+            <div class="channel-tab-item">
+              <button type="button" class="channel-tab-btn" data-channel="object">Object</button>
+              <button type="button" class="channel-toggle-btn" data-channel-toggle="object" aria-pressed="false" title="Enable Object channel">OFF</button>
+            </div>
+          </div>
+
+          <!-- Channel Input Panels for S2 -->
+          <div class="channel-input-panels" data-stage="s2">
+            <div class="channel-panel active" data-channel="text">
+              <textarea id="s2Text" class="input-composer" rows="3" placeholder="e.g. a dog running across the street..."></textarea>
+            </div>
+            <div class="channel-panel" data-channel="ocr">
+              <textarea id="s2Ocr" class="input-composer" rows="3" placeholder="Refinement on-screen text..."></textarea>
+            </div>
+            <div class="channel-panel" data-channel="asr">
+              <textarea id="s2Asr" class="input-composer" rows="3" placeholder="Refinement spoken words..."></textarea>
+              <div class="asr-mode-picker" data-stage="s2" role="group" aria-label="Stage 2 ASR search mode">
+                <button type="button" class="asr-mode-btn" data-asr-mode="pho" aria-pressed="false" title="Search phowhisper_folded only">
+                  <span class="asr-mode-label">PhoWhisper</span>
+                  <span class="asr-mode-help">Fuzzy PhoWhisper field</span>
+                </button>
+                <button type="button" class="asr-mode-btn" data-asr-mode="whisper_v3" aria-pressed="false" title="Search whisper_v3_folded only">
+                  <span class="asr-mode-label">Whisper large</span>
+                  <span class="asr-mode-help">Fuzzy Whisper-v3 field</span>
+                </button>
+                <button type="button" class="asr-mode-btn active" data-asr-mode="rrf" aria-pressed="true" title="Search both folded transcript fields with RRF">
+                  <span class="asr-mode-label">Elastic 2 fields</span>
+                  <span class="asr-mode-help">Fuzzy Elasticsearch over both fields</span>
+                </button>
+              </div>
+            </div>
+            <div class="channel-panel" data-channel="image">
+              <div class="image-query-dropzone" data-image-dropzone="s2" data-image-paste-target="s2">
+                <div class="image-query-input-row">
+                  <textarea id="s2ImageUrl" class="image-query-url-input" data-image-url-input="s2" rows="2" maxlength="2048" placeholder="Paste an image URL or drop an image here…" aria-label="Stage 2 image URL"></textarea>
+                </div>
+                <div class="image-query-preview-wrap">
+                  <img class="image-query-preview" data-image-preview="s2" alt="" hidden>
+                  <div class="image-query-actions">
+                    <label class="image-query-file-button btn-secondary btn-xs" for="s2Image">Choose file
+                      <input id="s2Image" type="file" accept="image/jpeg,image/png" aria-describedby="s2ImageStatus">
+                    </label>
+                    <button type="button" class="image-query-clear btn-secondary btn-xs" data-image-clear="s2" disabled>Clear</button>
+                  </div>
+                </div>
+                <div class="image-query-hint">Paste a URL, clipboard image, or local JPEG/PNG.</div>
+              </div>
+              <span id="s2ImageStatus" class="image-query-status" aria-live="polite"></span>
+            </div>
+            <div class="channel-panel" data-channel="object">
+              <div id="s2ObjectBuilder" class="object-query-builder" data-stage="s2">
+                <div class="object-query-rows" data-stage="s2">
+                  <div class="object-query-row" data-row-index="0">
+                    <input class="object-count" type="number" min="1" step="1" value="1" aria-label="S2 object quantity">
+                    <div class="object-alias-field">
+                      <input class="object-alias" type="text" list="objectAliasOptions" placeholder="people, car..." autocomplete="off" aria-label="S2 object alias">
+                      <span class="object-alias-resolution" aria-live="polite">type an object alias</span>
+                    </div>
+                    <button type="button" class="object-add-row" aria-label="Add S2 object">+</button>
+                    <button type="button" class="object-remove-row" aria-label="Remove S2 object" hidden>−</button>
+                  </div>
+                </div>
+                <div class="object-query-preview" aria-live="polite">Query: —</div>
+                <input id="s2Object" type="hidden" value="">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        </div>
+
+        <div class="dynamic-stage-controls staged-stage-controls" aria-label="Staged search stage count">
+          <span id="stagedStageCount" class="muted-sm">2 stages configured</span>
+          <div class="stage-count-buttons">
+            <button type="button" id="removeStagedStage" class="btn-icon-sm" title="Remove last staged-search stage" aria-label="Remove last staged-search stage">−</button>
+            <button type="button" id="addStagedStage" class="btn-icon-sm" title="Add staged-search stage" aria-label="Add staged-search stage">＋</button>
+          </div>
+        </div>
+
+        <div class="unified-search-controls" aria-label="Unified stage search controls">
+          <button type="button" id="runSearchBtn" class="btn-primary btn-block">
+            Run Search
+          </button>
+        </div>
+      </section>
+
+      <!-- Query History Section -->
+      <section id="historyBox" class="sidebar-section history-section">
+        <div class="history-header">
+          <span class="section-title">Recent Queries</span>
+          <button type="button" id="clearHistory" class="btn-link-xs">Clear</button>
+        </div>
+        <ul id="history" class="history-list"></ul>
+      </section>
+    </aside>
+
+    <!-- Pane 2: Central Results Matrix Area -->
+    <section id="mainContent" class="main-content" aria-label="Search Results">
+      <button type="button" id="stagePanelExpandBtn" class="sidebar-expand-btn sidebar-expand-left" title="Expand query sidebar" aria-label="Expand query sidebar" hidden>›</button>
+      <!-- Optional / Lazy Top Timeline Strip (±15 frames context) -->
+      <div id="topNeighborStrip" class="top-timeline-strip" hidden>
+        <div class="top-timeline-header">
+          <span class="timeline-title">Primary keyframe · nearby frames</span>
+          <span id="topTimelineFrameId" class="timeline-frame-id"></span>
+        </div>
+        <div id="topNeighborsContainer" class="top-timeline-thumbs"></div>
+      </div>
+
+      <!-- Dense Results Matrix (6 columns on desktop wide) -->
+      <div id="results" class="results-container">
+        <div class="empty-state">
+          <div class="empty-icon">🍵</div>
+          <h3>HCMAIC Retrieval Ready</h3>
+          <p class="muted">Enter queries in one or more stages to begin candidate retrieval.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Overlay Review Queue Drawer -->
+    <aside id="queueBox" class="queue-drawer queue-overlay" aria-label="Review Queue">
+      <div class="queue-header">
+        <div class="queue-title-box">
+          <span class="queue-heading">Queue (<span id="queueCountIndicator">0</span>)</span>
+        </div>
+        <div class="queue-header-actions">
+          <button type="button" id="queueCollapseBtn" class="btn-icon-xs" title="Close Review Queue" aria-label="Close Review Queue">×</button>
+          <button type="button" id="refreshQueue" class="btn-icon-xs" title="Refresh Queue">⟳</button>
+        </div>
+      </div>
+
+      <div id="queueStatus" class="queue-hint-text">
+        Empty. Select a frame, then press Q to add it to the review queue.
+      </div>
+
+      <ul id="queueItems" class="queue-items-list"></ul>
+
+      <details id="aic26ExportPanel" class="aic26-export-panel">
+        <summary>AIC26 CSV · 100 rows</summary>
+        <div class="aic26-export-content">
+          <label class="queue-export-label" for="submissionTask">Submission task</label>
+          <select id="submissionTask" class="select-sm">
+            <option value="KIS">KIS</option>
+            <option value="QA">Q&amp;A</option>
+            <option value="TRAKE">TRAKE</option>
+          </select>
+          <label class="queue-export-label" for="aic26Filename">CSV filename</label>
+          <input id="aic26Filename" class="input-xs" type="text" placeholder="query-1-kis">
+          <div class="queue-footer-actions aic26-export-actions">
+            <button type="button" id="previewAic26" class="btn-secondary btn-sm btn-half">Preview CSV</button>
+            <button type="button" id="downloadAic26" class="btn-primary btn-sm btn-half">Download CSV</button>
+          </div>
+        </div>
+      </details>
+    </aside>
+  </main>
+
+  <div id="aic26PreviewDialog" class="aic26-preview-dialog" role="dialog" aria-modal="false" aria-hidden="true" aria-labelledby="aic26PreviewTitle" hidden>
+    <div class="aic26-preview-dialog-card">
+      <div id="aic26PreviewDragHandle" class="aic26-preview-dialog-header" title="Drag to move CSV preview">
+        <div>
+          <h2 id="aic26PreviewTitle">AIC26 CSV preview</h2>
+          <span id="aic26PreviewDialogMeta" class="aic26-preview-dialog-meta">Headerless CSV · scroll to review</span>
+        </div>
+        <button type="button" id="closeAic26Preview" class="btn-icon-xs" title="Close CSV preview" aria-label="Close CSV preview">×</button>
+      </div>
+      <pre id="aic26Preview" class="aic26-preview" aria-label="AIC26 CSV preview"></pre>
+      <div class="aic26-preview-dialog-footer">
+        <span>Reviewing the complete generated CSV before submission.</span>
+        <button type="button" id="closeAic26PreviewFooter" class="btn-secondary btn-sm">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <datalist id="objectAliasOptions"></datalist>
+
+  <!-- Temporal Media Inspector / Lightbox Modal -->
+  <div id="detail" class="temporal-inspector-modal" hidden>
+    <div class="inspector-card inspector-video-first">
+      <!-- Header -->
+      <div class="inspector-header">
+        <div class="inspector-title-box">
+          <span class="inspector-badge" id="detailStageTag">S1</span>
+          <span id="detailTitle" class="inspector-title">Video Inspector</span>
+          <span class="inspector-score" id="detailScoreTag"></span>
+        </div>
+        <button type="button" id="closeDetail" class="btn-close-inspector" title="Close Inspector (Esc)">✕</button>
+      </div>
+
+      <div class="inspector-layout">
+        <!-- Video-first media column -->
+        <section class="inspector-video-column" aria-label="Selected video and stage timeline">
+          <div class="inspector-media-stage">
+            <!-- Video Stream Container -->
+            <div id="videoBox" class="video-container">
+              <video id="detailVideo" controls preload="metadata" playsinline class="video-element"></video>
+              <div class="video-seek-row">
+                <input id="videoSeekBar" class="video-seek-bar" type="range" min="0" max="0" step="0.01" value="0" disabled aria-label="Video timeline">
+                <span id="videoDuration" class="video-duration">0:00 / —</span>
+              </div>
+              <iframe id="previewFrame" class="video-iframe" hidden></iframe>
+            </div>
+
+            <!-- Hidden Fallback Image Container (Preserving Test Contracts) -->
+            <div id="keyframeFallbackBox" class="keyframe-box" hidden>
+              <img id="detailImage" alt="Keyframe">
+            </div>
+          </div>
+
+          <!-- Stage markers sit below the native seek bar and never cover it. -->
+          <div id="stageTimeline" class="inspector-stage-timeline" aria-label="Stage timeline">
+            <div class="inspector-stage-timeline-header">
+              <span class="timeline-title">Stage timeline</span>
+              <span id="stageTimelinePlayheadTime" class="timeline-frame-id">0:00</span>
+            </div>
+            <div id="stageTimelineMarkers" class="inspector-stage-timeline-track"></div>
+            <div class="inspector-stage-timeline-axis" aria-hidden="true">
+              <span>0:00</span>
+              <span id="stageTimelineEnd">—</span>
+            </div>
+          </div>
+
+          <!-- Nearby keyframes remain available, but no longer compete with the main video. -->
+          <div class="neighbor-strip-box inspector-neighbor-strip" hidden>
+            <div class="neighbor-strip-header">
+              <span class="timeline-title">Nearby keyframes</span>
+              <span id="detailTimelineFrameId" class="timeline-frame-id"></span>
+            </div>
+            <div id="neighbors" class="neighbor-thumbs-strip"></div>
+          </div>
+
+          <!-- Compact telemetry under the player -->
+          <div class="inspector-info-banner" hidden>
+            <div id="playerPosition" class="player-pos-text">video: — · time: 0 ms · source_frame_idx: —</div>
+            <div id="videoStatus" class="video-status-text"></div>
+            <div id="imageStatus" class="image-status-text" hidden></div>
+          </div>
+        </section>
+
+        <!-- Right task sidebar -->
+        <aside id="inspectorSidePanel" class="inspector-side-panel" aria-label="KIS QA TRAKE tools">
+          <div class="inspector-side-heading">
+            <div>
+              <span class="inspector-side-kicker">Temporal sequence</span>
+              <strong id="inspectorVideoId" class="inspector-side-video">—</strong>
+            </div>
+            <span id="inspectorStageCount" class="inspector-side-count">0 stages</span>
+          </div>
+          <div class="inspector-position-tools" aria-label="Playhead and source frame controls">
+            <div class="inspector-position-row">
+              <button type="button" id="btnMarkCurrentStage" class="btn-secondary btn-xs" title="Mark the active stage at the current stopped playhead">⌖ Mark stage</button>
+              <label class="inspector-source-index-label" for="sourceFrameIdxInput">To</label>
+              <input type="number" id="sourceFrameIdxInput" class="input-xs inspector-source-index-input" min="0" step="1" inputmode="numeric" placeholder="12345" aria-label="Canonical source frame index">
+              <button type="button" id="applySourceFrameIdx" class="btn-secondary btn-xs" title="Resolve this canonical source frame index and seek the video">Go</button>
+            </div>
+            <div class="inspector-position-row inspector-range-marker-row">
+              <button type="button" id="btnSetMarkerL" class="btn-secondary btn-xs" title="Save L at the current playhead">L</button>
+              <button type="button" id="btnSetMarkerR" class="btn-secondary btn-xs" title="Save R at the current playhead">R</button>
+              <button type="button" id="btnClearMarkerL" class="btn-secondary btn-xs" title="Clear L marker">Clear L</button>
+              <button type="button" id="btnClearMarkerR" class="btn-secondary btn-xs" title="Clear R marker">Clear R</button>
+              <span id="rangeMarkerStatus" class="inspector-range-marker-status" aria-live="polite">L — · R —</span>
+            </div>
+          </div>
+          <div id="inspectorStageSequence" class="inspector-stage-sequence" aria-label="Stage timestamps"></div>
+
+          <div id="stageFrameEditPanel" class="stage-frame-edit-panel" hidden>
+            <div class="stage-frame-edit-heading">
+              <span>Manual frame override</span>
+              <strong id="stageFrameEditStage">—</strong>
+            </div>
+            <label for="stageFrameUidInput">Canonical frame ID</label>
+            <div class="stage-frame-edit-row">
+              <input type="text" id="stageFrameUidInput" class="input-xs" placeholder="L28_V002:21425" autocomplete="off">
+              <button type="button" id="stageFrameApplyBtn" class="btn-secondary btn-xs">Save</button>
+              <button type="button" id="stageFrameCancelBtn" class="btn-secondary btn-xs">Cancel</button>
+            </div>
+            <span id="stageFrameEditStatus" class="stage-frame-edit-status" aria-live="polite"></span>
+          </div>
+
+          <div class="inspector-side-divider"></div>
+          <div class="inspector-tool-tabs" role="tablist" aria-label="Review task">
+            <button type="button" class="inspector-tool-tab active" data-inspector-task="KIS" role="tab" aria-selected="true">KIS</button>
+            <button type="button" class="inspector-tool-tab" data-inspector-task="QA" role="tab" aria-selected="false">QA</button>
+            <button type="button" class="inspector-tool-tab" data-inspector-task="TRAKE" role="tab" aria-selected="false">TRAKE</button>
+          </div>
+
+          <div class="inspector-primary-actions">
+            <button type="button" id="btnExtractSourceFrame" class="btn-ctrl btn-extract-source" title="Decode one raw frame and verify its canonical source frame index before queueing">Extract</button>
+            <button type="button" id="btnQueueModal" class="btn-ctrl btn-queue">Queue current (Q)</button>
+          </div>
+
+          <div class="video-actions-row inspector-video-actions">
+            <button type="button" id="btnReplay" class="btn-ctrl btn-replay">Replay</button>
+            <div class="btn-group-seek">
+              <button type="button" id="seekBack5" class="btn-ctrl">−5s</button>
+              <button type="button" id="seekBack1" class="btn-ctrl">−1s</button>
+              <button type="button" id="previousFrame" class="btn-ctrl btn-nav btn-nav-icon" title="Previous video result" aria-label="Previous video result">
+                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m14.5 5-7 7 7 7"></path></svg>
+              </button>
+              <button type="button" id="nextFrame" class="btn-ctrl btn-nav btn-nav-icon" title="Next video result" aria-label="Next video result">
+                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m9.5 5 7 7-7 7"></path></svg>
+              </button>
+              <button type="button" id="seekForward1" class="btn-ctrl">+1s</button>
+              <button type="button" id="seekForward5" class="btn-ctrl">+5s</button>
+            </div>
+          </div>
+
+          <!-- Hidden state select preserves the task contract used by queue/export. -->
+          <select id="selectionTask" class="select-sm inspector-task-state" aria-label="Selected temporal task">
+            <option value="KIS">KIS</option>
+            <option value="TRAKE">TRAKE</option>
+          </select>
+
+          <section id="inspectorQaPanel" class="inspector-task-panel" aria-label="QA controls" hidden>
+            <div class="inspector-panel-label">QA · answer for this stage</div>
+            <div class="qa-submission-row">
+              <input type="text" id="answer" class="input-composer" placeholder="QA answer text (optional)">
+              <button type="button" id="applyQaAnswer" class="btn-primary btn-sm">Apply answer</button>
+            </div>
+            <span id="qaApplyStatus" class="qa-apply-status" aria-live="polite"></span>
+          </section>
+
+          <div class="feedback-controls-row inspector-feedback-row" hidden>
+            <button type="button" id="positiveBtn" class="btn-feedback btn-pos">Relevant (+)</button>
+            <button type="button" id="negativeBtn" class="btn-feedback btn-neg">Not relevant (−)</button>
+            <span id="feedbackStatus" class="feedback-hint"></span>
+          </div>
+
+          <details class="inspector-details-accordion inspector-details-sidebar" hidden>
+            <summary class="details-summary">Advanced telemetry &amp; QA preview</summary>
+            <div class="details-content">
+              <dl id="detailMeta" class="metadata-grid"></dl>
+              <div id="asrEvidence" class="asr-evidence" hidden></div>
+              <pre id="temporalStatus" class="json-preview-box"></pre>
+              <pre id="submissionPreview" class="json-preview-box"></pre>
+            </div>
+          </details>
+        </aside>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bottom Compact App Status & Shortcuts Bar -->
+  <footer id="appFooter" class="app-footer">
+    <div class="footer-left">
+      <div id="resultStats" class="stat-items-group" hidden>
+        <span class="stat-pill" id="statHitCount">0 hits</span>
+        <span class="stat-pill" id="statVideoCount">0 videos</span>
+        <span class="stat-pill" id="statLatency">0 ms</span>
+      </div>
+      <div id="status" class="status-message muted"></div>
+    </div>
+    <div class="footer-right">
+      <span class="shortcut-hints">Focused: Results · [Click] Select · [Enter/Inspect] Open · [Q / Space] Add to Queue · [Esc] Close</span>
+    </div>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
