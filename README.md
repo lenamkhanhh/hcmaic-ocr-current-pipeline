@@ -4,10 +4,16 @@ Shareable code snapshot for the HCMAIC OCR path, audited on 2026-08-23.
 It contains the runtime adapter, crop-level Elasticsearch bridge, merger,
 dual-serve wiring, notebook builders, contract tests, and the audit notes.
 
-This repository intentionally does **not** contain keyframes, OCR rows,
-Elasticsearch snapshots, model weights, generated Kaggle notebooks, logs, or
-credentials. The private Kaggle/Hugging Face/Elasticsearch identifiers in the
-notebook builders were replaced with `REPLACE_WITH_*` placeholders.
+The Git tree intentionally does **not** contain keyframes, model weights,
+logs, credentials, or the multi-gigabyte OCR runtime payload. The complete
+current OCR handoff is published as split assets in release
+`ocr-handoff-20260826-v1`; it contains no keyframes. The private Kaggle /
+Hugging Face / Elasticsearch identifiers in the notebook builders remain
+`REPLACE_WITH_*` placeholders.
+
+See [`docs/OCR_RELEASE_HANDOFF_20260826.md`](docs/OCR_RELEASE_HANDOFF_20260826.md)
+for the exact asset inventory, extraction commands, checksums, and known
+evidence boundaries.
 
 ## Active architecture
 
